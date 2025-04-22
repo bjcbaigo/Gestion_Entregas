@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { sequelize } from './config/database';
 import routes from './routes';
+import { initializeModels } from './models';
+import path from 'path';
+import sincronizacionService from './services/sincronizacion.service';
 
 // Cargar variables de entorno según el ambiente
 const env = process.env.NODE_ENV || 'development';
@@ -16,6 +19,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Servir archivos estáticos (uploads)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rutas
 app.use('/api', routes);
@@ -34,6 +40,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Iniciar el servidor
 const startServer = async () => {
   try {
+    // Inicializar relaciones entre modelos
+    initializeModels();
+    
     // Verificar conexión a la base de datos
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida correctamente.');
@@ -43,6 +52,9 @@ const startServer = async () => {
       await sequelize.sync({ alter: true });
       console.log('Modelos sincronizados con la base de datos.');
     }
+    
+    // Iniciar sincronización programada
+    sincronizacionService.programarSincronizacion();
     
     // Iniciar el servidor HTTP
     app.listen(PORT, () => {
